@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мониторинг деформации — Качарский карьер</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0d14;--bg2:#10141f;--bg3:#161c2c;--bg4:#1c2438;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#dde2ee;--text2:#7a8299;--text3:#454d63;--accent:#3b9eff;--accent2:#6c52ff;--teal:#2dd4bf;--purple:#a78bfa;--danger:#f85555;--warn:#f5a623;--ok:#3ddc84;--mono:'JetBrains Mono',monospace;--sans:'Golos Text',sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.nav{height:54px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;position:sticky;top:0;z-index:200;}
+.pulse{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(61,220,132,0.5);animation:ping 2s infinite;}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(61,220,132,0.4);}70%{box-shadow:0 0 0 8px transparent;}100%{box-shadow:0 0 0 0 transparent;}}
+.nav-title{font-size:14px;font-weight:600;}.nav-sub{font-size:11px;color:var(--text2);font-family:var(--mono);}
+.nav-tabs{display:flex;gap:2px;margin-left:20px;}
+.ntab{font-size:12px;padding:5px 13px;border-radius:6px;border:none;background:transparent;color:var(--text2);cursor:pointer;font-family:var(--sans);transition:all 0.15s;}
+.ntab:hover{background:var(--bg3);color:var(--text);}
+.ntab.active{background:var(--bg3);color:var(--accent);border:1px solid rgba(59,158,255,0.25);}
+.nav-right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.btn{font-family:var(--sans);font-size:12px;padding:5px 13px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);cursor:pointer;transition:all 0.15s;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn-ok{background:rgba(59,158,255,0.1);border-color:rgba(59,158,255,0.3);color:var(--accent);}
+select.sel{font-family:var(--sans);font-size:12px;padding:5px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);outline:none;cursor:pointer;}
+.page{display:none;padding:16px 20px;gap:12px;flex-direction:column;}
+.page.active{display:flex;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.card-ttl{font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text2);font-family:var(--mono);}
+.mcard{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;}
+.mcard-lbl{font-size:11px;color:var(--text3);margin-bottom:3px;}.mcard-val{font-size:22px;font-weight:600;font-family:var(--mono);line-height:1.2;}.mcard-sub{font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--mono);}
+.c-ok{color:var(--ok);}.c-warn{color:var(--warn);}.c-danger{color:var(--danger);}.c-blue{color:var(--accent);}.c-teal{color:var(--teal);}.c-purple{color:var(--purple);}
+.img-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.img-card{border-radius:8px;overflow:hidden;border:1px solid var(--border);cursor:pointer;transition:border-color 0.15s;position:relative;}
+.img-card:hover{border-color:var(--accent);}
+.img-card img{width:100%;display:block;height:190px;object-fit:cover;}
+.img-badge{position:absolute;top:8px;left:8px;background:rgba(10,13,20,0.82);border:1px solid var(--border2);border-radius:4px;padding:3px 8px;font-size:10px;font-family:var(--mono);color:var(--text);}
+.img-date{position:absolute;bottom:8px;right:8px;background:rgba(10,13,20,0.75);border-radius:4px;padding:2px 7px;font-size:10px;font-family:var(--mono);color:var(--text2);}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+.overlay.open{display:flex;}.overlay img{max-width:90vw;max-height:82vh;border-radius:8px;}.overlay-close{position:absolute;top:18px;right:24px;font-size:22px;cursor:pointer;color:var(--text2);background:none;border:none;font-family:var(--mono);}.overlay-cap{font-size:13px;color:var(--text2);font-family:var(--mono);}
+.legend-bar{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;}
+.lb-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);font-family:var(--mono);}
+.lb-dot{width:9px;height:9px;border-radius:50%;}.lb-sq{width:9px;height:9px;border-radius:1px;}
+.idx-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.idx-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.idx-name{font-size:11px;font-family:var(--mono);font-weight:600;color:var(--accent);margin-bottom:3px;}
+.idx-val{font-size:20px;font-weight:600;font-family:var(--mono);}
+.idx-range{font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--mono);}
+.idx-bar{height:4px;border-radius:2px;background:var(--bg4);margin-top:6px;overflow:hidden;}
+.idx-fill{height:100%;border-radius:2px;}
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;padding:7px 10px;font-size:11px;color:var(--text3);font-family:var(--mono);border-bottom:1px solid var(--border);letter-spacing:0.04em;}
+td{padding:7px 10px;font-size:12px;border-bottom:1px solid var(--border);color:var(--text);}
+tbody tr:last-child td{border-bottom:none;}tbody tr{cursor:pointer;transition:background 0.1s;}tbody tr:hover td{background:rgba(255,255,255,0.02);}
+.badge{font-size:10px;font-family:var(--mono);padding:2px 7px;border-radius:4px;font-weight:500;}
+.b-gnss{background:rgba(59,158,255,0.12);color:var(--accent);}.b-insar{background:rgba(108,82,255,0.12);color:var(--accent2);}
+.b-crit{background:rgba(248,85,85,0.12);color:var(--danger);}.b-warn{background:rgba(245,166,35,0.12);color:var(--warn);}.b-ok{background:rgba(61,220,132,0.12);color:var(--ok);}
+.ch-wrap{position:relative;height:210px;}.ch-wrap-lg{position:relative;height:290px;}
+.ftabs{display:flex;gap:4px;}
+.ftab{font-size:11px;padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:var(--mono);transition:all 0.12s;}
+.ftab.active{background:var(--bg3);color:var(--text);border-color:var(--border2);}
+.map-wrap{width:100%;background:var(--bg3);border-radius:8px;overflow:hidden;}
+.map-wrap svg{width:100%;display:block;}
+.footer{padding:10px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);font-family:var(--mono);display:flex;justify-content:space-between;background:var(--bg2);}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="pulse"></div>
+    <div><div class="nav-title">Качарский карьер · Мониторинг деформации</div><div class="nav-sub">СГОК · Рудный, КЗ · 52.86°N 63.25°E · Sentinel-1/2 + GNSS</div></div>
+  </div>
+  <div class="nav-tabs">
+    <button class="ntab active" onclick="showPage('overview',this)">Обзор</button>
+    <button class="ntab" onclick="showPage('insar',this)">InSAR / Снимки</button>
+    <button class="ntab" onclick="showPage('gnss',this)">GNSS</button>
+    <button class="ntab" onclick="showPage('indices',this)">Индексы</button>
+    <button class="ntab" onclick="showPage('table',this)">Таблица</button>
+  </div>
+  <div class="nav-right">
+    <select class="sel" id="year-sel"><option value="all">2020–2026</option><option>2023</option><option>2024</option><option>2025</option></select>
+    <label class="btn btn-ok" style="cursor:pointer;" for="csv-up">↑ CSV<input type="file" id="csv-up" accept=".csv" style="display:none" onchange="loadCSV(this)"></label>
+    <button class="btn" onclick="exportCSV()">↓ Экспорт</button>
+  </div>
+</nav>
+
+<!-- OVERVIEW -->
+<div id="page-overview" class="page active">
+  <div class="g4">
+    <div class="mcard"><div class="mcard-lbl">Макс. смещение InSAR</div><div class="mcard-val c-danger">−1730 мм</div><div class="mcard-sub">зона активного карьера</div></div>
+    <div class="mcard"><div class="mcard-lbl">Ср. скорость оседания</div><div class="mcard-val c-warn">−185 мм/год</div><div class="mcard-sub">тренд 2020–2026</div></div>
+    <div class="mcard"><div class="mcard-lbl">Точек GNSS / InSAR</div><div class="mcard-val c-blue">8 / 12</div><div class="mcard-sub">активных датчиков</div></div>
+    <div class="mcard"><div class="mcard-lbl">Критичных зон</div><div class="mcard-val c-danger">3</div><div class="mcard-sub">&gt;500 мм накопл. смещения</div></div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="card-ttl">Карта смещений (InSAR + GNSS)</span><span style="font-size:11px;color:var(--text3);font-family:var(--mono);">клик по точке</span></div>
+      <div class="map-wrap" id="map-container"></div>
+      <div class="legend-bar">
+        <div class="lb-item"><div class="lb-dot" style="background:#3ddc84;"></div>&lt;100 мм</div>
+        <div class="lb-item"><div class="lb-dot" style="background:#f5a623;"></div>100–500 мм</div>
+        <div class="lb-item"><div class="lb-dot" style="background:#f85555;"></div>&gt;500 мм</div>
+        <div class="lb-item" style="margin-left:6px;"><div class="lb-dot" style="background:#3b9eff;border:2px solid #fff;"></div>GNSS</div>
+        <div class="lb-item"><div class="lb-sq" style="background:#6c52ff;"></div>InSAR</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-ttl">Накопл. смещение 2020–2026</span>
+        <select class="sel" id="ov-pt-sel" onchange="updateOvChart()" style="font-size:11px;padding:3px 8px;"></select>
+      </div>
+      <div class="ch-wrap-lg"><canvas id="ov-chart" role="img" aria-label="Накопленное смещение GNSS точки 2020-2026"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><span class="card-ttl">Спектральные индексы — зона карьера (2025)</span></div>
+    <div class="idx-grid" id="idx-summary"></div>
+  </div>
+</div>
+
+<!-- INSAR / IMAGES -->
+<div id="page-insar" class="page">
+  <div class="card">
+    <div class="card-hd"><span class="card-ttl">Архив снимков — Sentinel-1/2</span><span style="font-size:11px;color:var(--text3);font-family:var(--mono);">клик → полный экран</span></div>
+    <div class="img-grid">
+      <div class="img-card" onclick="openImg(0)">
+        <img id="sat-img-0" src="" alt="InSAR смещение">
+        <div class="img-badge">InSAR · displacement_VV (LOS)</div>
+        <div class="img-date">Sentinel-1 · 2023</div>
+      </div>
+      <div class="img-card" onclick="openImg(1)">
+        <img id="sat-img-1" src="" alt="NDVI">
+        <div class="img-badge">NDVI · растительность</div>
+        <div class="img-date">Sentinel-2 · 2023</div>
+      </div>
+      <div class="img-card" onclick="openImg(2)">
+        <img id="sat-img-2" src="" alt="MNDWI">
+        <div class="img-badge">MNDWI · водные объекты</div>
+        <div class="img-date">Sentinel-2 · 2023</div>
+      </div>
+      <div class="img-card" onclick="openImg(3)">
+        <img id="sat-img-3" src="" alt="SAR amplitude">
+        <div class="img-badge">SAR · амплитуда</div>
+        <div class="img-date">Sentinel-1 · 2023</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><span class="card-ttl">InSAR — временной ряд LOS смещений</span>
+      <select class="sel" id="insar-zone-sel" onchange="updateInsarChart()" style="font-size:11px;">
+        <option value="core">Зона карьера (центр)</option>
+        <option value="rim">Бровка карьера</option>
+        <option value="waste">Отвал</option>
+        <option value="far">Фоновая зона</option>
+      </select>
+    </div>
+    <div class="ch-wrap-lg"><canvas id="insar-chart" role="img" aria-label="InSAR LOS временной ряд"></canvas></div>
+  </div>
+</div>
+
+<!-- GNSS -->
+<div id="page-gnss" class="page">
+  <div class="g4">
+    <div class="mcard"><div class="mcard-lbl">GNSS точек</div><div class="mcard-val c-blue">8</div><div class="mcard-sub">постоянные марки</div></div>
+    <div class="mcard"><div class="mcard-lbl">Макс. осадка</div><div class="mcard-val c-danger">−1730 мм</div><div class="mcard-sub">P03 · 2020→2026</div></div>
+    <div class="mcard"><div class="mcard-lbl">Горизонт. смещ.</div><div class="mcard-val c-warn">+38 мм dE</div><div class="mcard-sub">P05 · 2026</div></div>
+    <div class="mcard"><div class="mcard-lbl">Точность</div><div class="mcard-val c-teal">±3 мм</div><div class="mcard-sub">статический режим</div></div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="card-ttl">Вертикальные смещения dU</span>
+        <select class="sel" id="gnss-pt-sel" onchange="updateGnssChart()" style="font-size:11px;padding:3px 8px;"></select>
+      </div>
+      <div class="ch-wrap-lg"><canvas id="gnss-chart" role="img" aria-label="GNSS вертикальные смещения"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-ttl">Скорости точек (мм/год)</span></div>
+      <div class="ch-wrap-lg"><canvas id="vel-chart" role="img" aria-label="Скорости GNSS точек"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-ttl">Горизонт. компоненты dN / dE</span>
+      <select class="sel" id="gnss-hz-sel" onchange="updateHzChart()" style="font-size:11px;padding:3px 8px;"></select>
+    </div>
+    <div class="ch-wrap"><canvas id="hz-chart" role="img" aria-label="Горизонтальные компоненты GNSS"></canvas></div>
+  </div>
+</div>
+
+<!-- INDICES -->
+<div id="page-indices" class="page">
+  <div class="card">
+    <div class="card-hd"><span class="card-ttl">Спектральные индексы 2020–2026</span>
+      <div class="ftabs">
+        <button class="ftab active" onclick="filterIdx('all',this)">Все</button>
+        <button class="ftab" onclick="filterIdx('veg',this)">Растительность</button>
+        <button class="ftab" onclick="filterIdx('geo',this)">Геология</button>
+        <button class="ftab" onclick="filterIdx('water',this)">Вода</button>
+      </div>
+    </div>
+    <div class="idx-grid" id="idx-cards-full"></div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="card-ttl">Динамика индекса</span>
+        <select class="sel" id="idx-sel" onchange="updateIdxChart()" style="font-size:11px;padding:3px 8px;"></select>
+      </div>
+      <div class="ch-wrap-lg"><canvas id="idx-chart" role="img" aria-label="Динамика спектрального индекса"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-ttl">Сравнение зон — 2025</span></div>
+      <div class="ch-wrap-lg"><canvas id="idx-radar" role="img" aria-label="Радарная диаграмма индексов по зонам"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div id="page-table" class="page">
+  <div class="card">
+    <div class="card-hd"><span class="card-ttl">Все точки мониторинга</span>
+      <div class="ftabs">
+        <button class="ftab active" onclick="filterTbl('all',this)">Все</button>
+        <button class="ftab" onclick="filterTbl('GNSS',this)">GNSS</button>
+        <button class="ftab" onclick="filterTbl('critical',this)">Критичные</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;"><table>
+      <thead><tr><th>Точка</th><th>Тип</th><th>Широта</th><th>Долгота</th><th>dU 2020</th><th>dU 2023</th><th>dU 2026</th><th>Скорость</th><th>Зона</th><th>Статус</th></tr></thead>
+      <tbody id="main-tbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay">
+  <button class="overlay-close" onclick="closeImg()">✕</button>
+  <img id="overlay-img" src="" alt="">
+  <div class="overlay-cap" id="overlay-cap"></div>
+</div>
+
+<div class="footer">
+  <span>Мониторинг деформации · Качарский карьер · Sentinel-1/2 InSAR + GNSS · 2020–2026</span>
+  <span id="fdate"></span>
+</div>
+
+<script>
+document.getElementById('fdate').textContent=new Date().toLocaleDateString('ru-RU',{day:'2-digit',month:'long',year:'numeric'});
+
+// ── DATA ──
+const QDATES=['Q1·20','Q3·20','Q1·21','Q3·21','Q1·22','Q3·22','Q1·23','Q3·23','Q1·24','Q3·24','Q1·25','Q3·25','Q1·26'];
+const YEARS=[2020,2021,2022,2023,2024,2025,2026];
+
+const GNSS_PTS=[
+  {id:'P01',lat:52.8620,lon:63.2448,zone:'Карьер (центр)',   dU:[0,-82,-175,-298,-432,-597,-781,-920,-1067,-1190,-1310,-1405,-1503],dN:[0,-2,-5,-9,-14,-20,-27,-33,-39,-44,-48,-52,-55],dE:[0,-3,-7,-11,-17,-24,-31,-38,-43,-48,-52,-55,-58],status:'critical'},
+  {id:'P02',lat:52.8635,lon:63.2472,zone:'Карьер (сев.)',    dU:[0,-71,-149,-253,-367,-512,-668,-792,-920,-1028,-1132,-1214,-1297],dN:[0,-2,-4,-7,-11,-16,-22,-27,-32,-36,-39,-42,-45],dE:[0,-2,-5,-9,-14,-20,-26,-32,-37,-41,-45,-48,-51],status:'critical'},
+  {id:'P03',lat:52.8608,lon:63.2430,zone:'Карьер (зап.)',    dU:[0,-95,-201,-341,-495,-686,-896,-1062,-1234,-1380,-1520,-1630,-1730],dN:[0,-3,-6,-10,-16,-23,-31,-38,-45,-51,-56,-60,-64],dE:[0,-4,-8,-14,-21,-29,-39,-47,-55,-62,-68,-73,-77],status:'critical'},
+  {id:'P04',lat:52.8650,lon:63.2507,zone:'Бровка (сев.)',    dU:[0,-35,-72,-121,-175,-243,-316,-374,-433,-483,-531,-569,-608],dN:[0,-1,-2,-4,-6,-9,-12,-15,-17,-19,-21,-23,-24],dE:[0,-1,-3,-5,-8,-11,-15,-18,-21,-23,-26,-28,-29],status:'warning'},
+  {id:'P05',lat:52.8592,lon:63.2488,zone:'Бровка (юж.)',     dU:[0,-28,-58,-97,-141,-195,-254,-300,-347,-387,-426,-456,-487],dN:[0,-1,-2,-3,-5,-7,-9,-11,-13,-15,-16,-17,-18],dE:[0,2,4,7,10,14,19,23,27,30,33,36,38],status:'warning'},
+  {id:'P06',lat:52.8668,lon:63.2437,zone:'Отвал (сев.)',     dU:[0,-12,-25,-41,-59,-81,-105,-124,-143,-159,-175,-187,-200],dN:[0,0,-1,-1,-2,-3,-4,-5,-6,-6,-7,-7,-8],dE:[0,0,-1,-2,-3,-4,-5,-6,-7,-8,-8,-9,-9],status:'ok'},
+  {id:'P07',lat:52.8583,lon:63.2518,zone:'Фоновая зона',     dU:[0,-4,-8,-13,-19,-26,-33,-39,-45,-50,-55,-59,-62],dN:[0,0,0,-1,-1,-2,-2,-3,-3,-3,-4,-4,-4],dE:[0,0,0,0,-1,-1,-1,-2,-2,-2,-2,-3,-3],status:'ok'},
+  {id:'P08',lat:52.8673,lon:63.2461,zone:'Фоновая зона',     dU:[0,-3,-6,-10,-14,-19,-25,-29,-33,-37,-41,-44,-47],dN:[0,0,0,0,-1,-1,-1,-2,-2,-2,-2,-2,-3],dE:[0,0,0,0,0,-1,-1,-1,-1,-2,-2,-2,-2],status:'ok'},
+];
+
+const INSAR_ZONES={
+  core:[0,-40,-89,-148,-218,-300,-395,-468,-544,-609,-671,-720,-770],
+  rim:[0,-21,-46,-76,-111,-153,-200,-237,-274,-306,-337,-361,-386],
+  waste:[0,-8,-17,-28,-40,-55,-72,-85,-98,-109,-120,-128,-137],
+  far:[0,-2,-4,-7,-10,-14,-18,-21,-24,-27,-29,-31,-33],
+};
+const INSAR_LABELS={core:'Зона карьера (центр)',rim:'Бровка',waste:'Отвал',far:'Фоновая зона'};
+
+const INDICES=[
+  {id:'NDVI',  name:'NDVI',      group:'veg',  desc:'Нормализов. вегет. индекс', color:'#3ddc84',range:[-1,1],
+   zones:{core:[0.05,0.04,0.04,0.03,0.03,0.02,0.02],rim:[0.32,0.30,0.29,0.28,0.27,0.26,0.25],waste:[0.18,0.17,0.16,0.15,0.14,0.13,0.12],far:[0.55,0.54,0.54,0.53,0.52,0.51,0.50]}},
+  {id:'MNDWI', name:'MNDWI',     group:'water',desc:'Модифицир. водный индекс',  color:'#3b9eff',range:[-1,1],
+   zones:{core:[-0.45,-0.46,-0.47,-0.47,-0.48,-0.49,-0.50],rim:[-0.32,-0.33,-0.34,-0.35,-0.36,-0.36,-0.37],waste:[-0.28,-0.29,-0.29,-0.30,-0.30,-0.31,-0.32],far:[0.12,0.13,0.12,0.14,0.13,0.12,0.11]}},
+  {id:'SAVI',  name:'SAVI',      group:'veg',  desc:'Почвенно-скоррект. NDVI',   color:'#50fa7b',range:[0,1],
+   zones:{core:[0.04,0.03,0.03,0.03,0.02,0.02,0.02],rim:[0.24,0.23,0.22,0.21,0.21,0.20,0.19],waste:[0.14,0.13,0.13,0.12,0.11,0.11,0.10],far:[0.41,0.40,0.40,0.39,0.39,0.38,0.37]}},
+  {id:'IoR',   name:'Iron Oxide',group:'geo',  desc:'Железооксидный (B4/B2)',    color:'#f85555',range:[0,3],
+   zones:{core:[2.21,2.23,2.25,2.28,2.30,2.33,2.35],rim:[1.45,1.46,1.48,1.49,1.51,1.52,1.54],waste:[1.82,1.84,1.85,1.87,1.89,1.90,1.92],far:[1.05,1.05,1.06,1.06,1.07,1.07,1.08]}},
+  {id:'Clay',  name:'Clay',      group:'geo',  desc:'Глинистые минералы',        color:'#f5a623',range:[0,3],
+   zones:{core:[1.95,1.97,1.98,2.00,2.02,2.04,2.06],rim:[1.38,1.40,1.41,1.43,1.44,1.46,1.47],waste:[1.65,1.67,1.68,1.70,1.72,1.73,1.75],far:[0.95,0.96,0.96,0.97,0.97,0.98,0.98]}},
+  {id:'Ferr',  name:'Ferrous',   group:'geo',  desc:'Железосодержащий (B11/B8)', color:'#a78bfa',range:[0,3],
+   zones:{core:[1.72,1.74,1.75,1.77,1.79,1.80,1.82],rim:[1.12,1.13,1.14,1.15,1.16,1.17,1.18],waste:[1.44,1.45,1.47,1.48,1.49,1.51,1.52],far:[0.80,0.80,0.81,0.81,0.82,0.82,0.83]}},
+];
+
+// ── satellite images (embedded SVG placeholders matching real screenshots) ──
+const SAT_SVGS=[
+  // InSAR displacement — mimics screenshot 1 palette
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 760 460'><rect width='760' height='460' fill='%230a1520'/><rect x='180' y='10' width='380' height='440' rx='6' fill='%23112' opacity='0.7'/><defs><radialGradient id='rg1' cx='42%25' cy='68%25' r='38%25'><stop offset='0%25' stop-color='%230022cc'/><stop offset='30%25' stop-color='%230066ff'/><stop offset='55%25' stop-color='%2322bb44'/><stop offset='75%25' stop-color='%23cccc22'/><stop offset='100%25' stop-color='%23cc8822'/></radialGradient></defs><rect x='182' y='12' width='376' height='436' rx='5' fill='url(%23rg1)' opacity='0.88'/><rect x='22' y='22' width='28' height='190' rx='3' fill='%23111' stroke='%23333' stroke-width='0.5'/><rect x='22' y='22' width='28' height='38' fill='%230022cc'/><rect x='22' y='60' width='28' height='38' fill='%230055ff'/><rect x='22' y='98' width='28' height='38' fill='%2322bb44'/><rect x='22' y='136' width='28' height='38' fill='%23cccc22'/><rect x='22' y='174' width='28' height='38' fill='%23cc8822'/><text x='55' y='40' fill='%23aaa' font-size='12' font-family='monospace'>-1.73 м</text><text x='55' y='115' fill='%23aaa' font-size='12' font-family='monospace'>-1.02 м</text><text x='55' y='190' fill='%23aaa' font-size='12' font-family='monospace'>-0.13 м</text><text x='290' y='370' fill='%23fff' font-size='13' font-family='monospace'>п. Качар</text><text x='570' y='440' fill='%23888' font-size='9' font-family='monospace'>Sentinel-1 / Copernicus</text></svg>`,
+  // NDVI
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 760 460'><rect width='760' height='460' fill='%23336600'/><ellipse cx='310' cy='200' rx='130' ry='90' fill='%2388aa44' opacity='0.9'/><ellipse cx='310' cy='210' rx='100' ry='65' fill='%23bbcc66' opacity='0.8'/><ellipse cx='310' cy='218' rx='70' ry='44' fill='%23dde088' opacity='0.8'/><ellipse cx='310' cy='224' rx='42' ry='26' fill='%23eeeebb' opacity='0.9'/><ellipse cx='490' cy='155' rx='90' ry='62' fill='%2399bb55' opacity='0.85'/><ellipse cx='600' cy='295' rx='70' ry='80' fill='%23aaccaa' opacity='0.7'/><ellipse cx='165' cy='108' rx='100' ry='65' fill='%2388bb66' opacity='0.8'/><rect x='270' y='94' width='15' height='58' fill='%23888'/><rect x='285' y='94' width='15' height='58' fill='%23888'/><rect x='300' y='94' width='15' height='58' fill='%23888'/><text x='130' y='318' fill='%23224422' font-size='14' font-family='monospace'>Қашар</text></svg>`,
+  // MNDWI
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 760 460'><rect width='760' height='460' fill='%232d8a5a'/><ellipse cx='310' cy='205' rx='130' ry='88' fill='%2344aa77' opacity='0.85'/><ellipse cx='310' cy='216' rx='95' ry='62' fill='%2355bb88' opacity='0.8'/><ellipse cx='310' cy='224' rx='65' ry='42' fill='%2388ddbb' opacity='0.7'/><ellipse cx='310' cy='230' rx='38' ry='24' fill='%23aaeedd' opacity='0.7'/><ellipse cx='490' cy='155' rx='88' ry='58' fill='%2355cc99' opacity='0.8'/><ellipse cx='170' cy='380' rx='45' ry='35' fill='%230044cc' opacity='0.9'/><rect x='618' y='280' width='100' height='130' rx='8' fill='%236699cc' opacity='0.75'/><ellipse cx='165' cy='110' rx='100' ry='65' fill='%2333bb77' opacity='0.8'/><rect x='272' y='92' width='15' height='58' fill='%230044ff'/><rect x='287' y='92' width='15' height='58' fill='%230055ff'/><rect x='302' y='92' width='15' height='58' fill='%230066ee'/><text x='130' y='316' fill='%23114422' font-size='14' font-family='monospace'>Қашар</text></svg>`,
+  // SAR amplitude
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 760 460'><rect width='760' height='460' fill='%23000033'/><ellipse cx='390' cy='230' rx='170' ry='150' fill='%23001155' opacity='0.9'/><ellipse cx='420' cy='218' rx='120' ry='110' fill='%23002299' opacity='0.8'/><ellipse cx='432' cy='210' rx='85' ry='78' fill='%230033cc' opacity='0.8'/><ellipse cx='442' cy='204' rx='55' ry='50' fill='%230055ee' opacity='0.9'/><ellipse cx='450' cy='198' rx='30' ry='28' fill='%2388bbff' opacity='0.9'/><ellipse cx='455' cy='194' rx='12' ry='11' fill='%23cceeFF'/><circle cx='300' cy='178' r='4' fill='%2222aaff' opacity='0.8'/><circle cx='340' cy='262' r='3' fill='%2244ccff'/><circle cx='500' cy='148' r='5' fill='%2266aaff'/><text x='280' y='382' fill='%2344aaff' font-size='14' font-family='monospace'>Kachar</text></svg>`,
+];
+
+const IMG_CAPS=[
+  'InSAR · LOS смещение · Sentinel-1 · 2023 · диапазон −1.73…−0.13 м · displacement_VV',
+  'NDVI · нормализованный вегетационный индекс · Sentinel-2 · 2023',
+  'MNDWI · водные объекты и влажность · Sentinel-2 · 2023',
+  'SAR · амплитуда · Sentinel-1 · Kachar · 2023',
+];
+
+function loadSvgImages() {
+  SAT_SVGS.forEach((svg,i)=>{
+    const el=document.getElementById('sat-img-'+i);
+    if(el) el.src='data:image/svg+xml,'+svg;
+  });
+}
+
+function openImg(i) {
+  document.getElementById('overlay-img').src='data:image/svg+xml,'+SAT_SVGS[i];
+  document.getElementById('overlay-cap').textContent=IMG_CAPS[i];
+  document.getElementById('overlay').classList.add('open');
+}
+function closeImg(){document.getElementById('overlay').classList.remove('open');}
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeImg();});
+
+// ── chart helpers ──
+const CHARTS={};
+function mkChart(id,cfg){const el=document.getElementById(id);if(!el)return;if(CHARTS[id])CHARTS[id].destroy();CHARTS[id]=new Chart(el.getContext('2d'),cfg);}
+const dg='rgba(255,255,255,0.04)',db='rgba(255,255,255,0.06)';
+const tt={backgroundColor:'#1c2438',borderColor:'rgba(255,255,255,0.12)',borderWidth:1,titleColor:'#7a8299',bodyColor:'#dde2ee',titleFont:{family:'JetBrains Mono',size:11},bodyFont:{family:'JetBrains Mono',size:11}};
+function sc(yl){return{x:{ticks:{color:'#555e72',font:{family:'JetBrains Mono',size:10},maxRotation:45,autoSkip:false},grid:{color:dg},border:{color:db}},y:{ticks:{color:'#555e72',font:{family:'JetBrains Mono',size:10},callback:v=>v+(yl||'')},grid:{color:dg},border:{color:db}}};}
+
+// ── MAP ──
+let selPt='P01';
+function renderMap(){
+  const W=440,H=280;
+  const latMin=52.856,latMax=52.870,lonMin=63.240,lonMax=63.256;
+  const px=l=>28+(l-lonMin)/(lonMax-lonMin)*(W-56);
+  const py=l=>(H-12)-(l-latMin)/(latMax-latMin)*(H-30);
+  let rects='';
+  for(let i=0;i<20;i++)for(let j=0;j<13;j++){
+    const dist=Math.sqrt((i/20-0.42)**2+(j/13-0.58)**2);
+    const v=Math.max(0,1-dist*2.4);
+    const fill=v>0.65?'%230033bb':v>0.45?'%230077cc':v>0.25?'%2322aa55':v>0.1?'%23bbaa22':'%23bb7722';
+    rects+=`<rect x="${(28+i*(W-56)/20).toFixed(0)}" y="${(12+j*(H-30)/13).toFixed(0)}" width="${((W-56)/20+1).toFixed(0)}" height="${((H-30)/13+1).toFixed(0)}" fill="${fill}" opacity="0.32"/>`;
+  }
+  let pts='';
+  GNSS_PTS.forEach(p=>{
+    const x=px(p.lon).toFixed(1),y=py(p.lat).toFixed(1);
+    const last=p.dU[p.dU.length-1];
+    const fc=last<-500?'%23f85555':last<-100?'%23f5a623':'%233ddc84';
+    const isSel=p.id===selPt;
+    pts+=`<circle cx="${x}" cy="${y}" r="${isSel?9:6}" fill="${fc}" opacity="0.18"/>`;
+    pts+=`<circle cx="${x}" cy="${y}" r="${isSel?6:4}" fill="${fc}" stroke="${isSel?'%23ffffff':'%233b9eff'}" stroke-width="${isSel?2:1.5}" style="cursor:pointer" onclick="selectPt('${p.id}')"/>`;
+    pts+=`<text x="${(parseFloat(x)+8).toFixed(0)}" y="${(parseFloat(y)+4).toFixed(0)}" font-size="9" fill="%237a8299" font-family="JetBrains Mono,monospace">${p.id}</text>`;
+  });
+  document.getElementById('map-container').innerHTML=
+    `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="${W}" height="${H}" fill="%230c1520" rx="6"/>${rects}
+      <ellipse cx="175" cy="148" rx="105" ry="78" fill="none" stroke="%231e3a2e" stroke-width="16" opacity="0.45"/>
+      <ellipse cx="175" cy="148" rx="72" ry="54" fill="none" stroke="%231e4a2e" stroke-width="9" opacity="0.55"/>
+      <ellipse cx="175" cy="148" rx="48" ry="36" fill="%230a1a10" opacity="0.65"/>
+      <text x="12" y="20" font-size="10" fill="%23555e72" font-family="JetBrains Mono,monospace">N↑</text>
+      <line x1="12" y1="22" x2="12" y2="34" stroke="%23555e72" stroke-width="1"/>${pts}
+    </svg>`.replace(/%23/g,'#');
+}
+
+// ── FILL SELECTS ──
+function fillSel(id,val){
+  const el=document.getElementById(id);if(!el)return;
+  el.innerHTML=GNSS_PTS.map(p=>`<option value="${p.id}">${p.id} · ${p.zone}</option>`).join('');
+  el.value=val||GNSS_PTS[0].id;
+}
+
+// ── OVERVIEW CHART ──
+function updateOvChart(){
+  const id=document.getElementById('ov-pt-sel')?.value||'P01';
+  selPt=id; renderMap();
+  const p=GNSS_PTS.find(x=>x.id===id);
+  mkChart('ov-chart',{type:'line',data:{labels:QDATES,datasets:[{label:'dU мм',data:p.dU,borderColor:'#3b9eff',backgroundColor:'rgba(59,158,255,0.08)',fill:true,tension:0.4,pointRadius:4,borderWidth:2,pointBackgroundColor:p.dU.map(v=>v<-500?'#f85555':v<-100?'#f5a623':'#3ddc84'),pointBorderColor:'#10141f',pointBorderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...tt,callbacks:{label:c=>` ${c.parsed.y} мм`}}},scales:sc('мм')}});
+}
+
+// ── INSAR CHART ──
+function updateInsarChart(){
+  const z=document.getElementById('insar-zone-sel')?.value||'core';
+  mkChart('insar-chart',{type:'line',data:{labels:QDATES,datasets:[{label:INSAR_LABELS[z],data:INSAR_ZONES[z],borderColor:'#6c52ff',backgroundColor:'rgba(108,82,255,0.08)',fill:true,tension:0.4,pointRadius:3,borderWidth:2,pointBackgroundColor:'#a78bfa',pointBorderColor:'#10141f',pointBorderWidth:1.5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...tt,callbacks:{label:c=>` ${c.parsed.y} мм`}}},scales:sc('мм')}});
+}
+
+// ── GNSS CHARTS ──
+function updateGnssChart(){
+  const id=document.getElementById('gnss-pt-sel')?.value||'P01';
+  const p=GNSS_PTS.find(x=>x.id===id);
+  mkChart('gnss-chart',{type:'line',data:{labels:QDATES,datasets:[{label:'dU',data:p.dU,borderColor:'#3b9eff',backgroundColor:'rgba(59,158,255,0.08)',fill:true,tension:0.4,pointRadius:3,borderWidth:2,pointBackgroundColor:p.dU.map(v=>v<-500?'#f85555':v<-100?'#f5a623':'#3ddc84'),pointBorderColor:'#10141f',pointBorderWidth:1.5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...tt,callbacks:{label:c=>` ${c.parsed.y} мм`}}},scales:sc('мм')}});
+}
+function updateVelChart(){
+  const vels=GNSS_PTS.map(p=>parseFloat(((p.dU[p.dU.length-1]-p.dU[0])/(QDATES.length/4)).toFixed(1)));
+  mkChart('vel-chart',{type:'bar',data:{labels:GNSS_PTS.map(p=>p.id),datasets:[{data:vels,backgroundColor:vels.map(v=>v<-150?'rgba(248,85,85,0.7)':v<-50?'rgba(245,166,35,0.7)':'rgba(61,220,132,0.7)'),borderColor:vels.map(v=>v<-150?'#f85555':v<-50?'#f5a623':'#3ddc84'),borderWidth:1,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{...tt,callbacks:{label:c=>` ${c.parsed.x} мм/год`}}},scales:{x:{ticks:{color:'#555e72',font:{family:'JetBrains Mono',size:10},callback:v=>v+' мм/год'},grid:{color:dg},border:{color:db}},y:{ticks:{color:'#7a8299',font:{family:'JetBrains Mono',size:11}},grid:{color:dg},border:{color:db}}}}});
+}
+function updateHzChart(){
+  const id=document.getElementById('gnss-hz-sel')?.value||'P01';
+  const p=GNSS_PTS.find(x=>x.id===id);
+  mkChart('hz-chart',{type:'line',data:{labels:QDATES,datasets:[
+    {label:'dN',data:p.dN,borderColor:'#2dd4bf',fill:false,tension:0.4,pointRadius:3,borderWidth:2,pointBackgroundColor:'#2dd4bf',pointBorderColor:'#10141f',pointBorderWidth:1},
+    {label:'dE',data:p.dE,borderColor:'#a78bfa',fill:false,tension:0.4,pointRadius:3,borderWidth:2,pointBackgroundColor:'#a78bfa',borderDash:[4,3],pointBorderColor:'#10141f',pointBorderWidth:1}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a8299',font:{family:'JetBrains Mono',size:10}},display:true},tooltip:{...tt}},scales:sc('мм')}});
+}
+
+// ── INDEX CARDS ──
+function renderIdxCards(container,filter){
+  const el=document.getElementById(container);if(!el)return;
+  const idxs=INDICES.filter(ix=>filter==='all'||ix.group===filter);
+  el.innerHTML=idxs.map(ix=>{
+    const val=ix.zones.core[ix.zones.core.length-1];
+    const pct=Math.max(0,Math.min(100,((val-ix.range[0])/(ix.range[1]-ix.range[0]))*100));
+    return `<div class="idx-card"><div class="idx-name">${ix.id}</div><div class="idx-val" style="color:${ix.color}">${val.toFixed(2)}</div><div class="idx-range">${ix.desc}</div><div class="idx-bar"><div class="idx-fill" style="width:${pct.toFixed(0)}%;background:${ix.color};"></div></div></div>`;
+  }).join('');
+}
+function filterIdx(f,btn){document.querySelectorAll('#page-indices .ftab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');renderIdxCards('idx-cards-full',f);}
+
+function fillIdxSel(){
+  const el=document.getElementById('idx-sel');if(!el)return;
+  el.innerHTML=INDICES.map(ix=>`<option value="${ix.id}">${ix.name}</option>`).join('');
+}
+const ZONE_KEYS=['core','rim','waste','far'],ZONE_LABELS=['Карьер','Бровка','Отвал','Фон'],ZONE_COLORS=['#f85555','#f5a623','#a78bfa','#3ddc84'];
+function updateIdxChart(){
+  const id=document.getElementById('idx-sel')?.value||'NDVI';
+  const ix=INDICES.find(x=>x.id===id);
+  mkChart('idx-chart',{type:'line',data:{labels:YEARS.map(String),datasets:ZONE_KEYS.map((z,i)=>({label:ZONE_LABELS[i],data:ix.zones[z],borderColor:ZONE_COLORS[i],fill:false,tension:0.35,pointRadius:4,borderWidth:2,pointBackgroundColor:ZONE_COLORS[i],pointBorderColor:'#10141f',pointBorderWidth:1.5,...(i>1?{borderDash:[4,3]}:{})}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a8299',font:{family:'JetBrains Mono',size:10}},display:true},tooltip:{...tt}},scales:sc('')}});
+}
+function renderIdxRadar(){
+  mkChart('idx-radar',{type:'radar',data:{labels:INDICES.map(ix=>ix.id),datasets:ZONE_KEYS.map((z,i)=>({label:ZONE_LABELS[i],data:INDICES.map(ix=>{const v=ix.zones[z][YEARS.length-1];return +((v-ix.range[0])/(ix.range[1]-ix.range[0])*100).toFixed(1);}),borderColor:ZONE_COLORS[i],backgroundColor:ZONE_COLORS[i]+'18',borderWidth:2,pointRadius:3,pointBackgroundColor:ZONE_COLORS[i]}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a8299',font:{family:'JetBrains Mono',size:10}},display:true},tooltip:{...tt}},scales:{r:{ticks:{color:'#454d63',backdropColor:'transparent',font:{size:9}},grid:{color:dg},angleLines:{color:dg},pointLabels:{color:'#7a8299',font:{family:'JetBrains Mono',size:10}}}}}});
+}
+
+// ── TABLE ──
+function renderTable(filter){
+  let pts=GNSS_PTS;
+  if(filter==='GNSS') pts=pts;
+  else if(filter==='critical') pts=pts.filter(p=>p.status==='critical');
+  document.getElementById('main-tbody').innerHTML=pts.map(p=>{
+    const v0=p.dU[0],v6=p.dU[6],vL=p.dU[p.dU.length-1];
+    const vel=((vL-v0)/(QDATES.length/4)).toFixed(0);
+    const fc=vL<-500?'var(--danger)':vL<-100?'var(--warn)':'var(--ok)';
+    const sb=p.status==='critical'?'b-crit':p.status==='warning'?'b-warn':'b-ok';
+    const st=p.status==='critical'?'Критично':p.status==='warning'?'Внимание':'Норма';
+    return `<tr onclick="selectAndGo('${p.id}')">
+      <td style="font-family:var(--mono);font-weight:500;color:var(--accent)">${p.id}</td><td><span class="badge b-gnss">GNSS</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${p.lat.toFixed(4)}</td><td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${p.lon.toFixed(4)}</td>
+      <td style="font-family:var(--mono);color:var(--ok)">${v0} мм</td><td style="font-family:var(--mono);color:var(--warn)">${v6} мм</td>
+      <td style="font-family:var(--mono);font-weight:600;color:${fc}">${vL} мм</td>
+      <td style="font-family:var(--mono);color:${parseFloat(vel)<-80?'var(--danger)':parseFloat(vel)<-30?'var(--warn)':'var(--ok)'}">${vel} мм/год</td>
+      <td style="font-size:11px;color:var(--text2)">${p.zone}</td><td><span class="badge ${sb}">${st}</span></td>
+    </tr>`;
+  }).join('');
+}
+function filterTbl(f,btn){document.querySelectorAll('#page-table .ftab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');renderTable(f);}
+function selectAndGo(id){selectPt(id);showPage('overview',document.querySelectorAll('.ntab')[0]);}
+
+function selectPt(id){selPt=id;const s=document.getElementById('ov-pt-sel');if(s)s.value=id;updateOvChart();}
+
+// ── NAV ──
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id)?.classList.add('active');
+  if(btn?.classList)btn.classList.add('active');
+  setTimeout(()=>{
+    if(id==='overview')updateOvChart();
+    if(id==='insar'){loadSvgImages();updateInsarChart();}
+    if(id==='gnss'){updateGnssChart();updateVelChart();updateHzChart();}
+    if(id==='indices'){renderIdxCards('idx-cards-full','all');updateIdxChart();renderIdxRadar();}
+    if(id==='table')renderTable('all');
+  },30);
+}
+
+// ── CSV ──
+function loadCSV(input){const f=input.files[0];if(f)alert('CSV загружен: '+f.name+'\nФункция импорта активна. В полной версии данные заменят демо.');}
+function exportCSV(){
+  const rows=[['point_id','lat','lon','zone','dU_2020','dU_2023','dU_2026','vel_mm_yr','status']];
+  GNSS_PTS.forEach(p=>{rows.push([p.id,p.lat,p.lon,p.zone,p.dU[0],p.dU[6],p.dU[p.dU.length-1],((p.dU[p.dU.length-1]-p.dU[0])/(QDATES.length/4)).toFixed(0),p.status]);});
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));a.download='kachar_2020_2026.csv';a.click();
+}
+
+// ── INIT ──
+function init(){
+  fillSel('ov-pt-sel','P01');fillSel('gnss-pt-sel','P01');fillSel('gnss-hz-sel','P01');
+  fillIdxSel();
+  loadSvgImages();
+  renderMap();renderIdxCards('idx-summary','all');
+  updateOvChart();renderTable('all');
+}
+init();
+</script>
+</body>
+</html>
